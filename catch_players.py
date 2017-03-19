@@ -7,13 +7,13 @@ import json
 import time
 
 class catch_players:
-    def __init__(self):
-        options = {"model": "cfg/yolo-voc.cfg", "load": "bin/yolo-voc.weights", "threshold": 0.2}
+    def __init__(self,thresdhold=0.18):
+        options = {"model": "cfg/yolo-voc.cfg", "load": "bin/yolo-voc.weights", "threshold": thresdhold}
         self.tfnet = TFNet(options)
         self.bg=Image.open("./black.jpg")
         self.save_img=False
         return 
-    def catch_hsv(self,img,hlsdown,hlsup,width,hight,threadhold_area,save_name,color,limt_mask,bg):
+    def catch_hsv(self,img,hlsdown,hlsup,width,hight,thresdhold_area,save_name,color,limt_mask,bg):
         img_copy=img.copy()
         black_image=bg.copy()
         width=math.floor(width/2)
@@ -34,7 +34,7 @@ class catch_players:
             for cnt in cnts:
                 x,y,w,h = cv2.boundingRect(cnt)
                 if x+width<=1280 and y+hight+baise<=720:                
-                    if w*h>=threadhold_area and limt_mask[y+hight+baise][x]==1 and limt_mask[y+hight+baise][x+width]==1:
+                    if w*h>=thresdhold_area and limt_mask[y+hight+baise][x]==1 and limt_mask[y+hight+baise][x+width]==1:
                         datas.append([x-width,y-hight+baise,x+width,y+hight+baise,x+baise,y+baise])
                         black_image.paste(img.crop((x-width,y-hight+baise,x+width,y+hight+baise)),(x-width,y-hight+baise))
                         count+=1
@@ -47,7 +47,7 @@ class catch_players:
 
     def match_person(self,datas,mask,filters,r):
         if datas is not None:
-            max_pro=[10000000 for i in range(len(filters))]
+            max_pro=[0 for i in range(len(filters))]
             record_point=[[0,0,0,0] for i in range(len(filters))]
             for data in datas:
                 bottomright=[data['bottomright']['x'],data['bottomright']['y']]
@@ -70,7 +70,7 @@ class catch_players:
                                     p1=[max(filter_temp[0],topleft[0]),max(filter_temp[1],topleft[1]),min(filter_temp[2],bottomright[0]),min(filter_temp[3],bottomright[1])]
                                     temp_point=[p1[0]+math.floor((-p1[0]-p1[2]+2*x)/4),p1[1]+math.floor((-p1[1]-p1[3]+2*y)/4),p1[2]+math.floor((-p1[0]-p1[2]+2*x)/4),p1[3]+math.floor((-p1[1]-p1[3]+2*y)/4)]
                         i+=1
-                    if position>=0 and max_pro[position] > max_area:
+                    if position>=0 and max_pro[position] < max_area:
                         #print(position,max_area,temp_point)
                         record_point[position]=temp_point
                         max_pro[position]=max_area
@@ -94,7 +94,7 @@ class catch_players:
         return img
 
 
-    def catch_basketball_court(self,img,hlsdown,hlsup,threadhold):
+    def catch_basketball_court(self,img,hlsdown,hlsup,thresdhold):
         img_copy=img.copy()
         img_copy = cv2.GaussianBlur(np.array(img_copy), (3, 3), 0)
         hls = cv2.cvtColor(img_copy, cv2.COLOR_RGB2HLS)
@@ -115,7 +115,7 @@ class catch_players:
                 box = np.int0(box)
                 width=abs(box[2][0]-box[0][0])
                 hight=abs(box[2][1]-box[0][1])
-                if width*hight>=threadhold:
+                if width*hight>=thresdhold:
                     if left_point>box[0][0]:
                         left_point=box[0][0]
                     if  right_point<box[2][0]:
@@ -124,7 +124,9 @@ class catch_players:
                         top_point=box[2][1]
                     if  down_point<box[0][1]:
                         down_point=box[0][1]
-            data=np.array([[[left_point,down_point],[left_point,top_point],[right_point,top_point],[right_point,down_point]]])
+            data=np.array([[left_point,down_point,right_point,top_point]])
+            if self.save_img==True:
+                self.draw_box(data,(255,0,0),img.copy(),"./court.jpg")
             mask=[  [0 for i in range(1280)]   for j in range(720)   ]
             for i in range(top_point,down_point):
                 for j in range(left_point,right_point):
@@ -134,7 +136,7 @@ class catch_players:
 
     def test(self,image_path=None,img=None,save_img=False,p1_name="./f1.jpg",p2_name="./f2.jpg",p3_name="./result.jpg",p4_name="./yolo.jpg"):
         self.save_img=save_img
-        if image_path is None or image_path="":
+        if image_path is None or image_path=="":
             image_path="./test3/1.jpg"
         if img is None:
             img=Image.open(image_path)
@@ -148,15 +150,15 @@ class catch_players:
         print("yolo time:" ,end-start)
         ans=[]
         mask=self.catch_basketball_court(img,(10,155,115),(20,216,153),1000)
-        _,filters=self.catch_hsv(img,(107,71,178),(110,128,255),110,250,500,p1_name,(0,255,0),mask,self.bg)
-        result1=self.match_person(datas,mask,filters,0.3)
+        _,filters=self.catch_hsv(img,(107,71,178),(110,128,255),110,220,500,p1_name,(0,255,0),mask,self.bg)
+        result1=self.match_person(datas,mask,filters,0.4)
         ans.extend(result1)
-        _,filters=self.catch_hsv(img,(125,160,0),(170,255,255),110,250,500,p2_name,(0,0,255),mask,self.bg)
-        result2=self.match_person(datas,mask,filters,0.3)
+        _,filters=self.catch_hsv(img,(125,160,0),(170,255,255),110,220,500,p2_name,(0,0,255),mask,self.bg)
+        result2=self.match_person(datas,mask,filters,0.4)
         ans.extend(result2)
         if self.save_img==True:
             img=self.draw_box(result1,(0,255,0),img,p3_name)
-            self.draw_box(result2,(0,0,255),img,p3_name)
-        return ans
+            img=self.draw_box(result2,(0,0,255),img,p3_name)
+        return ans,img
 
 
