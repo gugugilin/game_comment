@@ -159,5 +159,4 @@ class catch_players:
             self.draw_box(result2,(0,0,255),img,p3_name)
         return ans
 
-p1=catch_players()
-print(p1.test("./test3/3.jpg",save_img=True))
+

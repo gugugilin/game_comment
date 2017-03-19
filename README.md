@@ -167,4 +167,25 @@ print(result)
 
 The name of input tensor and output tensor are respectively `'input'` and `'output'`. For further usage of this protobuf file, please refer to the official documentation of `Tensorflow` on C++ API [_here_](https://www.tensorflow.org/versions/r0.9/api_docs/cc/index.html). To run it on, say, iOS application, simply add the file to Bundle Resources and update the path to this file inside source code.
 
+
+### Test in use catch_players.py in your python-code
+you must have cv 
+  you can use the commend :pip3 install opencv-python
+in your code
+``` python
+import catch_players as catch
+
+p1=catch.catch_players()
+result=p1.test("image_path")
+```
+if you want use the image_mat instead of image_path
+and you want save the image you can use
+``` python
+import catch_players as catch
+
+p1=catch.catch_players()
+img_mat="your Image object"
+result=p1.test(img=img_mat,save_img=True)
+```
+
 That's all.
