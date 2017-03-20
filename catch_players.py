@@ -7,11 +7,15 @@ import json
 import time
 
 class catch_players:
-    def __init__(self,thresdhold=0.18):
+    def __init__(self,thresdhold=0.18,width=1280,hight=720,show_console=True):
         options = {"model": "cfg/yolo-voc.cfg", "load": "bin/yolo-voc.weights", "threshold": thresdhold}
+        self.show_console=show_console
         self.tfnet = TFNet(options)
         self.bg=Image.open("./black.jpg")
         self.save_img=False
+        self.save_draw=True
+        self.width=width
+        self.hight=hight
         return 
     def catch_hsv(self,img,hlsdown,hlsup,width,hight,thresdhold_area,save_name,color,limt_mask,bg):
         img_copy=img.copy()
@@ -33,17 +37,18 @@ class catch_players:
         if len(cnts) > 0:
             for cnt in cnts:
                 x,y,w,h = cv2.boundingRect(cnt)
-                if x+width<=1280 and y+hight+baise<=720:                
+                if x+width+baise<=self.width and y+hight+baise<=self.hight:                
                     if w*h>=thresdhold_area and limt_mask[y+hight+baise][x]==1 and limt_mask[y+hight+baise][x+width]==1:
                         datas.append([x-width,y-hight+baise,x+width,y+hight+baise,x+baise,y+baise])
                         black_image.paste(img.crop((x-width,y-hight+baise,x+width,y+hight+baise)),(x-width,y-hight+baise))
                         count+=1
         else:
             print("not target obj")
-        print(count)
+        if self.show_console:
+            print(count)
         if self.save_img==True:
             black_image.save(save_name,img.format)
-        return np.array(black_image),datas
+        return black_image,datas
 
     def match_person(self,datas,mask,filters,r):
         if datas is not None:
@@ -81,7 +86,8 @@ class catch_players:
             topleft=(data['topleft']['x'],data['topleft']['y'])
             img=cv2.rectangle(np.array(img),topleft,bottomright,color,2) 
             img=Image.fromarray(img)
-        img.save(save_name,img.format)
+        if self.save_img==True:
+            img.save(save_name,img.format)
         return img
     def draw_box(self,datas,color,img,save_name):
         if datas is not None:
@@ -90,7 +96,8 @@ class catch_players:
                 bottomright=(data[2],data[3])
                 img=cv2.rectangle(np.array(img),topleft,bottomright,color,2) 
                 img=Image.fromarray(img)
-            img.save(save_name,img.format)
+            if self.save_img==True:
+                img.save(save_name,img.format)
         return img
 
 
@@ -127,38 +134,50 @@ class catch_players:
             data=np.array([[left_point,down_point,right_point,top_point]])
             if self.save_img==True:
                 self.draw_box(data,(255,0,0),img.copy(),"./court.jpg")
-            mask=[  [0 for i in range(1280)]   for j in range(720)   ]
+            mask=[  [0 for i in range(self.width)]   for j in range(self.hight)   ]
+            if down_point>=self.hight :
+                down_point=self.hight 
+                print(data)
+            elif right_point>=self.width :
+                right_point>=self.width 
+                print(data)
             for i in range(top_point,down_point):
                 for j in range(left_point,right_point):
                     mask[i][j]=1
         return mask
 
 
-    def test(self,image_path=None,img=None,save_img=False,p1_name="./f1.jpg",p2_name="./f2.jpg",p3_name="./result.jpg",p4_name="./yolo.jpg"):
+    def test(self,image_path=None,img=None,save_img=False,save_draw=True,p1_name="./f1.jpg",p2_name="./f2.jpg",p3_name="./result.jpg",p4_name="./yolo.jpg"):
         self.save_img=save_img
+        self.save_draw=save_draw
         if image_path is None or image_path=="":
             image_path="./test3/1.jpg"
         if img is None:
             img=Image.open(image_path)
-        print("start test")
-
+        else:
+            img=Image.fromarray(img)
+        img=img.resize((self.width,self.hight),Image.BILINEAR)
+        if self.show_console:
+            print("start test")
+        
         start=time.time()
         datas=self.tfnet.return_predict(np.array(img))
-        if self.save_img==True:
-            self.draw_person(datas,(255,0,0),img,p4_name)
+        if self.save_draw==True:
+            img3=self.draw_person(datas,(255,0,0),img,p4_name)
         end=time.time()
-        print("yolo time:" ,end-start)
+        if self.show_console:
+            print("yolo time:" ,end-start)
         ans=[]
         mask=self.catch_basketball_court(img,(10,155,115),(20,216,153),1000)
-        _,filters=self.catch_hsv(img,(107,71,178),(110,128,255),110,220,500,p1_name,(0,255,0),mask,self.bg)
+        img1,filters=self.catch_hsv(img,(107,71,178),(110,128,255),110,220,500,p1_name,(0,255,0),mask,self.bg)
         result1=self.match_person(datas,mask,filters,0.4)
         ans.extend(result1)
-        _,filters=self.catch_hsv(img,(125,160,0),(170,255,255),110,220,500,p2_name,(0,0,255),mask,self.bg)
+        img2,filters=self.catch_hsv(img,(125,160,0),(170,255,255),110,220,500,p2_name,(0,0,255),mask,self.bg)
         result2=self.match_person(datas,mask,filters,0.4)
         ans.extend(result2)
-        if self.save_img==True:
+        if self.save_draw==True:
             img=self.draw_box(result1,(0,255,0),img,p3_name)
             img=self.draw_box(result2,(0,0,255),img,p3_name)
-        return ans,img
+        return ans,img,img1,img2,img3
 
 
