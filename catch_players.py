@@ -79,6 +79,10 @@ class catch_players:
                         #print(position,max_area,temp_point)
                         record_point[position]=temp_point
                         max_pro[position]=max_area
+        if len(filters)>5:
+            return record_point[0:5]
+        for i in range(5-len(filters)):
+            record_point.append([0,0,0,0])
         return record_point
     def draw_person(self,datas,color,img,save_name):
         for data in datas:
@@ -170,14 +174,17 @@ class catch_players:
         ans=[]
         mask=self.catch_basketball_court(img,(10,155,115),(20,216,153),1000)
         img1,filters=self.catch_hsv(img,(107,71,178),(110,128,255),110,220,500,p1_name,(0,255,0),mask,self.bg)
-        result1=self.match_person(datas,mask,filters,0.4)
+        result1=self.match_person(datas,mask,filters,0.3)
         ans.extend(result1)
         img2,filters=self.catch_hsv(img,(125,160,0),(170,255,255),110,220,500,p2_name,(0,0,255),mask,self.bg)
-        result2=self.match_person(datas,mask,filters,0.4)
+        result2=self.match_person(datas,mask,filters,0.3)
         ans.extend(result2)
         if self.save_draw==True:
             img=self.draw_box(result1,(0,255,0),img,p3_name)
             img=self.draw_box(result2,(0,0,255),img,p3_name)
+        else:
+            img=None
+            img3=None
         return ans,img,img1,img2,img3
 
 
